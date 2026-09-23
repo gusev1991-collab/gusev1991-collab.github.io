@@ -71,8 +71,10 @@ h3{font-size:15px;font-weight:600;margin:22px 0 8px}
 .stepper button:disabled{opacity:.35}
 .stepper b{font:700 44px/1 Unbounded,sans-serif;min-width:64px;text-align:center;font-variant-numeric:tabular-nums}
 .stepcap{text-align:center;font-size:13px;color:var(--muted);margin-bottom:16px}
-.mitem{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.mitem .mt{font-size:13px;color:var(--muted);width:42px;flex:none;font-variant-numeric:tabular-nums}
+.mitem{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
+.mitem .mt{font-size:13px;color:var(--muted);width:42px;flex:none;font-variant-numeric:tabular-nums;padding-top:12px}
+.mnote{resize:none;overflow:hidden;line-height:1.4;min-height:44px;display:block}
+.entry .t1.wrap{white-space:pre-wrap;overflow:visible;overflow-wrap:anywhere}
 .mitem .inp{margin-top:0;flex:1;min-width:0}
 .mdel{width:36px;height:36px;border-radius:10px;background:var(--card);color:var(--muted);font-size:20px;flex:none}
 .missbtn{font-size:12px;padding:3px 9px;border-radius:99px;background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
@@ -216,26 +218,37 @@ const cb2p = fn => new Promise((res,rej) => fn((err,v) => err ? rej(err) : res(v
 async function load(){
   if (CS) {
     mode = 'cloud';
-    const keys = await cb2p(cb => CS.getKeys(cb));
+    const keys = await cb2p(cb => CS.getKeys(cb)), raw = {};
     for (let i=0; i<keys.length; i+=50) {
       const chunk = keys.slice(i,i+50);
       const vals = await cb2p(cb => CS.getItems(chunk, cb));
       for (const k of chunk) {
         if (!vals[k]) continue;
-        try { const o = JSON.parse(vals[k]); if (k==='cfg') S.cfg = o; else if (k.startsWith('d_')) S.days[k.slice(2)] = o; } catch(e){}
+        if (k==='cfg') { try { S.cfg = JSON.parse(vals[k]); } catch(e){} continue; }
+        let m = k.match(/^d_(.+)$/); if (m) { (raw[m[1]] = raw[m[1]] || [])[0] = vals[k]; continue; }
+        m = k.match(/^p(\d+)_(.+)$/); if (m) (raw[m[2]] = raw[m[2]] || [])[+m[1]] = vals[k];
       }
     }
+    for (const d in raw) { PC[d] = raw[d].length; try { S.days[d] = JSON.parse(raw[d].join('')); } catch(e){} }
   } else if (window.storage) {
     mode = 'artifact';
     try { const r = await window.storage.get(BLOB, false); if (r && r.value) S = JSON.parse(r.value); } catch(e){}
     S.days = S.days || {};
   }
 }
+const PC = {}, PART = 4000;
+async function saveDayCloud(d){
+  const v = S.days[d], str = v ? JSON.stringify(v) : '', parts = [];
+  for (let i=0; i<str.length; i+=PART) parts.push(str.slice(i,i+PART));
+  for (let i=0; i<parts.length; i++) await cb2p(cb => CS.setItem(i ? `p${i}_${d}` : `d_${d}`, parts[i], cb));
+  for (let i=Math.max(parts.length,0); i<(PC[d]||1); i++) await cb2p(cb => CS.removeItem(i ? `p${i}_${d}` : `d_${d}`, cb));
+  PC[d] = parts.length;
+}
 async function persist(key){
   try {
     if (mode==='cloud') {
       if (key==='cfg') S.cfg ? await cb2p(cb=>CS.setItem('cfg',JSON.stringify(S.cfg),cb)) : await cb2p(cb=>CS.removeItem('cfg',cb));
-      else { const v = S.days[key]; v ? await cb2p(cb=>CS.setItem('d_'+key,JSON.stringify(v),cb)) : await cb2p(cb=>CS.removeItem('d_'+key,cb)); }
+      else await saveDayCloud(key);
     } else if (mode==='artifact') await window.storage.set(BLOB, JSON.stringify(S), false);
   } catch(e){ toast('Не сохранилось, проверь интернет'); }
 }
@@ -371,7 +384,7 @@ function renderLog(){
     const items = rows.map(e => { const t = new Date(e.t);
       if (e.k==='m') return `<button class="entry" data-mday="${d}">
         <span class="badge" style="--c:var(--bad)">✕</span>
-        <span class="main"><div class="t1">${e.n ? esc(e.n) : 'Упустил момент'}</div><div class="t2">${pad(t.getHours())}:${pad(t.getMinutes())}</div></span>
+        <span class="main"><div class="t1 wrap">${e.n ? esc(e.n) : 'Упустил момент'}</div><div class="t2">${pad(t.getHours())}:${pad(t.getMinutes())}</div></span>
       </button>`;
       return `<button class="entry" data-del="${d}|${e.t}">
         <span class="badge" style="--c:${LV[e.l].c}">L${e.l}</span>
@@ -484,7 +497,7 @@ function drawMiss(){
   const list = S.days[MD]?.ms || [], isToday = MD===ymd(new Date());
   const items = list.map((x,i)=>({...x,i})).sort((a,b)=>b.t-a.t).map(x => { const t = new Date(x.t);
     return `<div class="mitem"><span class="mt">${pad(t.getHours())}:${pad(t.getMinutes())}</span>
-      <input class="inp mnote" data-mi="${x.i}" maxlength="80" placeholder="Где, что остановило" value="${esc(x.n||'')}">
+      <textarea class="inp mnote" data-mi="${x.i}" rows="1" placeholder="Где, что остановило">${esc(x.n||'')}</textarea>
       <button class="mdel" data-mdel="${x.i}" aria-label="Удалить этот момент">×</button></div>`; }).join('');
   document.getElementById('sheet').innerHTML = `<div class="grab"></div>
     <h2 style="margin-bottom:2px">Упущенные моменты</h2>
@@ -498,7 +511,9 @@ function drawMiss(){
     ${items}
     <p class="hint">Заметка необязательна, но полезна: через пару недель по ним видно, что чаще всего останавливает.</p>
     <button class="cta" data-act="mdone">Готово</button>`;
+  document.querySelectorAll('.mnote').forEach(grow);
 }
+function grow(el){ el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }
 function closeSheet(){
   if (MD){ const d = MD; MD = null; clearTimeout(noteTimer); cleanDay(d); render(); persist(d); }
   document.getElementById('ov').classList.remove('open');
@@ -569,7 +584,7 @@ document.addEventListener('click', async e => {
 document.addEventListener('input', e => {
   if (e.target.classList.contains('mnote') && MD){
     const x = S.days[MD]?.ms[+e.target.dataset.mi]; if (!x) return;
-    x.n = e.target.value.slice(0,80); clearTimeout(noteTimer); const d = MD; noteTimer = setTimeout(() => persist(d), 700);
+    x.n = e.target.value; grow(e.target); clearTimeout(noteTimer); const d = MD; noteTimer = setTimeout(() => persist(d), 700);
   }
   if (e.target.id==='pinp'){ F.p = e.target.value; document.querySelectorAll('[data-place]').forEach(c=>c.classList.remove('sel')); }
   if (e.target.id==='xr'){ F.x = +e.target.value; const c = xColor(F.x); const xv = document.getElementById('xv'); xv.textContent = F.x; xv.style.setProperty('--x',c); e.target.style.setProperty('--x',c); }
