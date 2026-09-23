@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
 <style>
-:root{--l1:#7FBFA8;--l2:#6AA7E0;--l3:#C492EA;--l4:#F2C14E;--gold:#F2C14E;--on-gold:#2A2006;--bad:#E07A6A}
+:root{--l0:#B8AE98;--l1:#7FBFA8;--l2:#6AA7E0;--l3:#C492EA;--l4:#F2C14E;--gold:#F2C14E;--on-gold:#2A2006;--bad:#E07A6A}
 [data-theme=dark]{--bg:#151B2B;--card:#1D2537;--card2:#253049;--line:#2F3A55;--text:#ECEFF6;--muted:#8D97AF}
-[data-theme=light]{--bg:#EEF1F6;--card:#FFFFFF;--card2:#F2F4F9;--line:#DCE1EB;--text:#192033;--muted:#687188;--l1:#3E9A7B;--l2:#3E82C7;--l3:#9A5CC9;--l4:#D9A21E;--gold:#F0B92E}
+[data-theme=light]{--bg:#EEF1F6;--card:#FFFFFF;--card2:#F2F4F9;--line:#DCE1EB;--text:#192033;--muted:#687188;--l0:#8A7F68;--l1:#3E9A7B;--l2:#3E82C7;--l3:#9A5CC9;--l4:#D9A21E;--gold:#F0B92E}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg)}
 body{color:var(--text);font:15px/1.45 Onest,system-ui,-apple-system,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
@@ -65,6 +65,16 @@ h2{font:600 20px Unbounded,sans-serif;margin:4px 0 14px}
 h3{font-size:15px;font-weight:600;margin:22px 0 8px}
 .dayblock{margin-bottom:18px}
 .dayhead{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted);margin-bottom:8px}
+.stepper{display:flex;align-items:center;justify-content:center;gap:28px;margin:18px 0 6px}
+.stepper button{width:56px;height:56px;border-radius:50%;background:var(--card);font:500 28px/1 Onest,sans-serif;display:grid;place-items:center}
+.stepper button.plus{background:color-mix(in srgb,var(--bad) 22%,var(--card));color:var(--bad)}
+.stepper button:disabled{opacity:.35}
+.stepper b{font:700 44px/1 Unbounded,sans-serif;min-width:64px;text-align:center;font-variant-numeric:tabular-nums}
+.stepcap{text-align:center;font-size:13px;color:var(--muted);margin-bottom:16px}
+.mitem{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.mitem .mt{font-size:13px;color:var(--muted);width:42px;flex:none;font-variant-numeric:tabular-nums}
+.mitem .inp{margin-top:0;flex:1;min-width:0}
+.mdel{width:36px;height:36px;border-radius:10px;background:var(--card);color:var(--muted);font-size:20px;flex:none}
 .missbtn{font-size:12px;padding:3px 9px;border-radius:99px;background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
 .entry{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:14px;padding:11px 13px;margin-bottom:6px;width:100%;text-align:left}
 .badge{font:700 12px Unbounded,sans-serif;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 20%,transparent);color:var(--c);flex:none}
@@ -116,6 +126,7 @@ h3{font-size:15px;font-weight:600;margin:22px 0 8px}
 .sheet.open{transform:none}
 .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px}
 .lvgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lvopt.wide{grid-column:1/-1}
 .lvopt{background:var(--card);border-radius:14px;padding:11px 12px;text-align:left;border:2px solid transparent}
 .lvopt.sel{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--card))}
 .lvopt .lv{display:block;margin-bottom:3px}
@@ -165,8 +176,12 @@ const ver = v => { try { return inTG && TG.isVersionAtLeast(v); } catch(e){ retu
 const CS = ver('6.9') ? TG.CloudStorage : null;
 const hap = t => { try { if(!ver('6.1')) return; t==='tap' ? TG.HapticFeedback.impactOccurred('light') : TG.HapticFeedback.notificationOccurred(t); } catch(e){} };
 
-const PLAN = [{1:10,2:3},{1:10,2:5,3:2},{2:5,3:5,4:1},{3:7,4:3}];
+const PLAN = [{0:15,1:3},{1:10,2:3},{1:10,2:5,3:2},{2:5,3:5,4:1},{3:7,4:3}];
+const MIN_DAYS = [1,3,3,3,3];
+const LAST = PLAN.length-1;
+const LEVELS = [0,1,2,3,4];
 const LV = {
+  0:{s:'Микроконтакт', d:'Кивок, «привет» прохожему, лишняя фраза к заказу или своё продолжение к чужому началу', c:'var(--l0)'},
   1:{s:'Любой незнакомец', d:'Заговорил без необходимости: дорога, время, комплимент, комментарий', c:'var(--l1)'},
   2:{s:'Разговор от 3 реплик', d:'То же, но разговор продержался минимум три обмена', c:'var(--l2)'},
   3:{s:'Девушке: ты понравилась', d:'Подошёл к понравившейся и прямо обозначил интерес', c:'var(--l3)'},
@@ -224,29 +239,35 @@ async function persist(key){
     } else if (mode==='artifact') await window.storage.set(BLOB, JSON.stringify(S), false);
   } catch(e){ toast('Не сохранилось, проверь интернет'); }
 }
-function cleanDay(d){ const v = S.days[d]; if (v && !v.a.length && !v.m) delete S.days[d]; }
+function normalize(){
+  for (const d in S.days){ const v = S.days[d]; v.a = v.a || [];
+    if (!v.ms){ v.ms = Array.from({length:v.m||0}, (_,k) => ({t:parse(d).getTime()+12*36e5+k*6e4, n:''})); }
+    delete v.m; }
+}
+const dayObj = d => S.days[d] || (S.days[d] = {a:[], ms:[]});
+function cleanDay(d){ const v = S.days[d]; if (v && !v.a.length && !(v.ms||[]).length) delete S.days[d]; }
 
 /* ---------- program logic ---------- */
 function weekData(w){
   let a = [], m = 0;
-  for (let i=0;i<7;i++){ const v = S.days[addDays(w,i)]; if (v){ a = a.concat(v.a); m += v.m||0; } }
+  for (let i=0;i<7;i++){ const v = S.days[addDays(w,i)]; if (v){ a = a.concat(v.a); m += (v.ms||[]).length; } }
   return {a, m};
 }
-function evalWeek(a, plan){
+function evalWeek(a, plan, minDays){
   const c = [0,0,0,0,0]; a.forEach(e => c[e.l]++);
   const got = {}, need = {}; let carry = 0;
-  for (let l=4; l>=1; l--){ const have = c[l]+carry, n = plan[l]||0, u = Math.min(have,n); got[l]=u; need[l]=n; carry = have-u; }
+  for (let l=4; l>=0; l--){ const have = c[l]+carry, n = plan[l]||0, u = Math.min(have,n); got[l]=u; need[l]=n; carry = have-u; }
   const days = new Set(a.map(e => ymd(new Date(e.t)))).size;
-  const lvOk = [1,2,3,4].every(l => got[l] >= need[l]);
-  return {c, got, need, days, lvOk, closed: lvOk && days>=3};
+  const lvOk = LEVELS.every(l => got[l] >= need[l]);
+  return {c, got, need, days, minDays, lvOk, closed: lvOk && days>=minDays};
 }
 function timeline(){
   const cur = mondayOf(new Date()), out = [];
   if (!S.cfg || S.cfg.start > cur) return out;
   let stage = 0; const att = {};
   for (let w=S.cfg.start; w<=cur; w=addDays(w,7)){
-    const st = Math.min(stage,3); att[stage] = (att[stage]||0)+1;
-    const {a,m} = weekData(w), ev = evalWeek(a, PLAN[st]);
+    const st = Math.min(stage,LAST); att[stage] = (att[stage]||0)+1;
+    const {a,m} = weekData(w), ev = evalWeek(a, PLAN[st], MIN_DAYS[st]);
     const l3 = a.filter(e => e.l>=3);
     out.push({w, stage, st, attempt:att[stage], ev, a, m, current:w===cur,
       avgX:avg(a.map(e=>e.x)), l3n:l3.length, l3x:avg(l3.map(e=>e.x)),
@@ -278,9 +299,9 @@ const planStr = p => Object.entries(p).map(([l,n]) => `${n}×L${l}`).join(', ');
 function renderOnboard(){
   const cur = mondayOf(new Date()), next = addDays(cur,7);
   app.innerHTML = `<div class="onb">
-    <h1>Четыре недели подходов</h1>
+    <h1>Пять недель подходов</h1>
     <p>Считаем только то, что зависит от тебя: подошёл или нет. Реакция собеседника в зачёт не идёт.</p>
-    <div class="plan">${PLAN.map((p,i)=>`<div><b>Неделя ${i+1}</b><span>${planStr(p)}</span></div>`).join('')}</div>
+    <div class="plan">${PLAN.map((p,i)=>`<div><b>Неделя ${i+1}</b><span>${planStr(p)}${MIN_DAYS[i]<3?', любые дни':''}</span></div>`).join('')}</div>
     <button class="cta" data-start="${cur}">Начать с этой недели</button>
     <button class="ghost" data-start="${next}">Со следующего понедельника, ${dm(next)}</button>
   </div>`;
@@ -292,11 +313,11 @@ function renderWeek(){
     const left = Math.round((parse(S.cfg.start)-parse(td))/864e5);
     app.innerHTML = `<div class="hdr"><h1>Скоро старт</h1></div>
       <p class="sub">Программа начнётся в понедельник, ${dm(S.cfg.start)}. Через ${left} ${plural(left,'день','дня','дней')}.</p>
-      <div class="banner" style="margin-top:20px">До старта можно размяться на L1: спросить дорогу, сделать комплимент кофе. В зачёт это не пойдёт, но первый подход в понедельник дастся легче.</div>`;
+      <div class="banner" style="margin-top:20px">До старта можно размяться на L0: кивнуть прохожему, добавить фразу к заказу. В зачёт это не пойдёт, но в понедельник начать будет легче.</div>`;
     return;
   }
   const tl = timeline(), cw = tl[tl.length-1], ev = cw.ev;
-  const maint = cw.stage > 3;
+  const maint = cw.stage > LAST;
   const di = (today.getDay()+6)%7, left = 7-di;
   const todayN = (S.days[td]?.a.length) || 0;
 
@@ -308,26 +329,26 @@ function renderWeek(){
     const on = S.days[d]?.a.length > 0;
     return `<div class="day ${on?'on':''} ${d===td?'today':''} ${d>td?'future':''}"><i></i>${w}</div>`; }).join('');
 
-  const steps = [4,3,2,1].map(l => {
+  const steps = [4,3,2,1,0].filter(l => l>0 || ev.need[0] || ev.c[0]).map(l => {
     const need = ev.need[l], got = ev.got[l];
-    if (!need) return `<div class="step off" style="--c:${LV[l].c};--i:${l-1}">
+    if (!need) return `<div class="step off" style="--c:${LV[l].c};--i:${l}">
       <div class="step-h"><span class="lv">L${l}</span><span class="lname">${LV[l].s}</span></div>
       <div class="offnote">Не в плане этой недели${ev.c[l] ? `, записано ${ev.c[l]}` : ''}</div></div>`;
     const ticks = Array.from({length:need}, (_,i) => `<i class="${i<got?'on':''} ${popLevel===l&&i===got-1?'pop':''}"></i>`).join('');
-    return `<div class="step" style="--c:${LV[l].c};--i:${l-1}">
+    return `<div class="step" style="--c:${LV[l].c};--i:${l}">
       <div class="step-h"><span class="lv">L${l}</span><span class="lname">${LV[l].s}</span><span class="cnt ${got>=need?'done':''}">${got}/${need}</span></div>
       <div class="ticks">${ticks}</div></div>`;
   }).join('');
 
   let banner = '';
   if (ev.closed) banner = `<div class="banner">Неделя закрыта. Всё, что дальше, идёт сверх плана.</div>`;
-  else if (ev.lvOk) banner = `<div class="banner">Уровни выполнены. Для зачёта нужен ещё ${3-ev.days} ${plural(3-ev.days,'активный день','активных дня','активных дней')}.</div>`;
+  else if (ev.lvOk) banner = `<div class="banner">Уровни выполнены. Для зачёта нужен ещё ${ev.minDays-ev.days} ${plural(ev.minDays-ev.days,'активный день','активных дня','активных дней')}.</div>`;
 
   app.innerHTML = `
-    <div class="hdr"><h1>${maint ? 'Поддержание' : `Неделя ${cw.st+1}`}</h1>${maint?'':'<span class="of">из 4</span>'}${pill}</div>
+    <div class="hdr"><h1>${maint ? 'Поддержание' : `Неделя ${cw.st+1}`}</h1>${maint?'':`<span class="of">из ${PLAN.length}</span>`}${pill}</div>
     <div class="sub">${range(cw.w)}, ${left===1 ? 'последний день' : `осталось ${left} ${plural(left,'день','дня','дней')}`}</div>
     <div class="days">${dots}</div>
-    <div class="daynote">Активных дней: ${ev.days} из 3 обязательных</div>
+    <div class="daynote">${ev.minDays>1 ? `Активных дней: ${ev.days} из ${ev.minDays} обязательных` : `Активных дней: ${ev.days}. На этой неделе подходят любые дни`}</div>
     ${banner}
     <div class="ladder">${steps}</div>
     <div class="actions">
@@ -346,14 +367,19 @@ function renderLog(){
   if (!ds.length){ app.innerHTML = `<h2>Журнал</h2><div class="empty">Здесь появится каждый подход: уровень, место, тревога и чем закончилось.<br><button class="cta" data-act="add">Записать первый</button></div>`; return; }
   app.innerHTML = `<h2>Журнал</h2>` + ds.map(d => {
     const v = S.days[d], dt = parse(d);
-    const items = [...v.a].sort((a,b)=>b.t-a.t).map(e => { const t = new Date(e.t);
+    const rows = [...v.a.map(e=>({...e,k:'a'})), ...(v.ms||[]).map(x=>({...x,k:'m'}))].sort((a,b)=>b.t-a.t);
+    const items = rows.map(e => { const t = new Date(e.t);
+      if (e.k==='m') return `<button class="entry" data-mday="${d}">
+        <span class="badge" style="--c:var(--bad)">✕</span>
+        <span class="main"><div class="t1">${e.n ? esc(e.n) : 'Упустил момент'}</div><div class="t2">${pad(t.getHours())}:${pad(t.getMinutes())}</div></span>
+      </button>`;
       return `<button class="entry" data-del="${d}|${e.t}">
         <span class="badge" style="--c:${LV[e.l].c}">L${e.l}</span>
         <span class="main"><div class="t1">${esc(e.p || LV[e.l].s)}</div><div class="t2">${pad(t.getHours())}:${pad(t.getMinutes())}${e.o ? ', '+esc(e.o.toLowerCase()) : ''}</div></span>
         <span class="anx" style="color:${xColor(e.x)};background:color-mix(in srgb,${xColor(e.x)} 16%,transparent)">${e.x}</span>
       </button>`; }).join('');
-    return `<div class="dayblock"><div class="dayhead"><span>${WDL[(dt.getDay()+6)%7]}, ${dm(d)}</span>${v.m ? `<button class="missbtn" data-unmiss="${d}">упущено ${v.m}</button>` : ''}</div>${items}</div>`;
-  }).join('') + `<p class="hint">Нажми на запись или на «упущено», чтобы удалить.</p>`;
+    return `<div class="dayblock"><div class="dayhead"><span>${WDL[(dt.getDay()+6)%7]}, ${dm(d)}</span>${(v.ms||[]).length ? `<button class="missbtn" data-mday="${d}">упущено ${v.ms.length}</button>` : ''}</div>${items}</div>`;
+  }).join('') + `<p class="hint">Нажми на подход, чтобы удалить. Нажми на упущенный момент, чтобы изменить число или заметку.</p>`;
 }
 
 function chart(tl){
@@ -378,9 +404,9 @@ function renderStats(){
   if (!tl.length){ app.innerHTML = `<h2>Динамика</h2><div class="empty">Графики появятся с первой недели программы.</div>`; return; }
   const g = goal(tl);
   const rows = [...tl].reverse().map(x => {
-    const tot = [1,2,3,4].reduce((s,l)=>s+x.ev.need[l],0), got = [1,2,3,4].reduce((s,l)=>s+x.ev.got[l],0);
+    const tot = LEVELS.reduce((s,l)=>s+x.ev.need[l],0), got = LEVELS.reduce((s,l)=>s+x.ev.got[l],0);
     const st = x.current ? '<span class="st now">идёт</span>' : x.ev.closed ? '<span class="st ok">закрыта</span>' : '<span class="st no">не закрыта</span>';
-    const name = x.stage>3 ? 'Поддержание' : `Неделя ${x.st+1}${x.attempt>1 ? `, попытка ${x.attempt}` : ''}`;
+    const name = x.stage>LAST ? 'Поддержание' : `Неделя ${x.st+1}${x.attempt>1 ? `, попытка ${x.attempt}` : ''}`;
     return `<div class="wrow"><div><div>${name}</div><div class="t2">${range(x.w)}. План ${got}/${tot}, дней ${x.ev.days}, тревога ${f1(x.avgX)}, конверсия ${x.conv==null?'—':Math.round(x.conv*100)+'%'}</div></div>${st}</div>`;
   }).join('');
   app.innerHTML = `<h2>Динамика</h2>
@@ -399,10 +425,17 @@ function renderRules(){
     <h3 style="margin-top:0">Подход засчитывается, если</h3>
     <ul><li>инициатор ты, человек незнаком, не через друзей</li><li>живьём и трезвым</li><li>сказал приветствие и хотя бы одну фразу, дождался ответа</li><li>содержание и реакция не важны: промямлил тоже считается</li></ul>
     <h3>Уровни</h3>
-    ${[1,2,3,4].map(l=>`<div class="lvrow"><span class="badge" style="--c:${LV[l].c}">L${l}</span><p>${LV[l].d}. ${l===3?'Подошёл, струсил и спросил дорогу — это L1.':''}${l===4?'Зачёт по факту вопроса, не ответа.':''}</p></div>`).join('')}
-    <p class="muted" style="font-size:13.5px">Высокий уровень засчитывается и вниз: лишний L3 закроет план по L2 и L1.</p>
+    ${LEVELS.map(l=>`<div class="lvrow"><span class="badge" style="--c:${LV[l].c}">L${l}</span><p>${LV[l].d}. ${l===3?'Подошёл, струсил и спросил дорогу — это L1.':''}${l===4?'Зачёт по факту вопроса, не ответа.':''}</p></div>`).join('')}
+    <p class="muted" style="font-size:13.5px">Высокий уровень засчитывается и вниз: лишний L3 закроет план по L2, L1 и L0.</p>
+    <h3>Если начал не ты</h3>
+    <p>Засчитывается только твой ход и тем уровнем, которым он является. Проверка: если бы ты промолчал, это случилось бы?</p>
+    <ul><li>Ответил зеркально: улыбнулся в ответ, «нормально, а у вас?» — не засчитывается</li>
+    <li>Добавил своё или развернул в разговор, даже длинный, — L0</li>
+    <li>Сам сказал, что она понравилась, — L3</li>
+    <li>Сам предложил контакт или встречу — L4</li></ul>
+    <p class="muted" style="font-size:13.5px">L1 и L2 — только когда тишину нарушил ты: трудное в них именно это.</p>
     <h3>Неделя</h3>
-    <ul><li>Понедельник–воскресенье, минимум 3 разных дня</li><li>Не закрыл — неделя повторяется с теми же цифрами</li><li>Перевыполнение не переносится</li><li>Записывай подход в течение 10 минут</li></ul>
+    <ul><li>Понедельник–воскресенье, минимум 3 разных дня. Исключение — первая неделя: там любые дни</li><li>Не закрыл — неделя повторяется с теми же цифрами</li><li>Перевыполнение не переносится</li><li>Записывай подход в течение 10 минут</li></ul>
     <h3>Упустил момент</h3>
     <p>Отмечай каждый раз, когда захотел подойти к девушке и не подошёл. Без фильтра «она была занята». Из этого считается конверсия импульса: сколько раз из желания подойти ты действительно подошёл.</p>
     <h3>Настройки</h3>
@@ -414,7 +447,7 @@ function renderRules(){
 let F = {};
 function openSheet(){
   const tl = timeline(), ev = tl.length ? tl[tl.length-1].ev : null;
-  let def = 1; if (ev) { const u = [1,2,3,4].find(l => ev.got[l] < ev.need[l]); def = u || 3; }
+  let def = 1; if (ev) { const u = LEVELS.find(l => ev.got[l] < ev.need[l]); def = u ?? 3; }
   const recent = [];
   Object.keys(S.days).sort().reverse().forEach(d => [...S.days[d].a].reverse().forEach(e => { if (e.p && !recent.includes(e.p)) recent.push(e.p); }));
   const places = [...new Set([...recent.slice(0,4), ...PLACES])].slice(0,7);
@@ -428,7 +461,7 @@ function openSheet(){
 function drawSheet(){
   document.getElementById('sheet').innerHTML = `<div class="grab"></div>
     <h2 style="margin-bottom:12px">Новый подход</h2>
-    <div class="lvgrid">${[1,2,3,4].map(l=>`<button class="lvopt ${F.l===l?'sel':''}" style="--c:${LV[l].c}" data-lv="${l}"><span class="lv">L${l}</span><small>${LV[l].d}</small></button>`).join('')}</div>
+    <div class="lvgrid">${LEVELS.map(l=>`<button class="lvopt ${l===0?'wide':''} ${F.l===l?'sel':''}" style="--c:${LV[l].c}" data-lv="${l}"><span class="lv">L${l}</span><small>${LV[l].d}</small></button>`).join('')}</div>
     <div class="fl"><span>Где</span></div>
     <div class="chips">${F.places.map(p=>`<button class="chip ${F.p===p?'sel':''}" data-place="${esc(p)}">${esc(p)}</button>`).join('')}</div>
     <input class="inp" id="pinp" maxlength="24" placeholder="Или напиши своё" value="${F.places.includes(F.p)?'':esc(F.p)}">
@@ -436,17 +469,45 @@ function drawSheet(){
     <input type="range" min="1" max="10" step="1" value="${F.x}" id="xr" style="--x:${xColor(F.x)}" aria-label="Тревога от 1 до 10">
     <div class="fl"><span>Чем закончилось</span><span>необязательно</span></div>
     <div class="chips">${OUTCOMES.map(o=>`<button class="chip ${F.o===o?'sel':''}" data-out="${o}">${o}</button>`).join('')}</div>
-    <p class="hint">Ты начал, человек незнаком, живьём и трезвым, была фраза и ответ. Если так — засчитывается, как бы ни прошло.</p>
+    <p class="hint">Ты начал, человек незнаком, живьём и трезвым, была фраза и ответ. Если так — засчитывается, как бы ни прошло. Начал не ты: развернул в разговор — L0, сам сказал, что понравилась, — L3, сам предложил встречу — L4.</p>
     <button class="cta" data-act="save">Сохранить подход</button>`;
 }
+let MD = null, noteTimer;
+function openMiss(d){
+  MD = d; drawMiss();
+  document.getElementById('ov').classList.add('open');
+  document.getElementById('sheet').classList.add('open');
+  if (ver('6.1')) TG.BackButton.show();
+  hap('tap');
+}
+function drawMiss(){
+  const list = S.days[MD]?.ms || [], isToday = MD===ymd(new Date());
+  const items = list.map((x,i)=>({...x,i})).sort((a,b)=>b.t-a.t).map(x => { const t = new Date(x.t);
+    return `<div class="mitem"><span class="mt">${pad(t.getHours())}:${pad(t.getMinutes())}</span>
+      <input class="inp mnote" data-mi="${x.i}" maxlength="80" placeholder="Где, что остановило" value="${esc(x.n||'')}">
+      <button class="mdel" data-mdel="${x.i}" aria-label="Удалить этот момент">×</button></div>`; }).join('');
+  document.getElementById('sheet').innerHTML = `<div class="grab"></div>
+    <h2 style="margin-bottom:2px">Упущенные моменты</h2>
+    <div class="sub" style="margin-top:0">${isToday ? 'Сегодня, ' : ''}${dm(MD)}</div>
+    <div class="stepper">
+      <button data-act="mminus" aria-label="Убрать последний" ${list.length?'':'disabled'}>−</button>
+      <b>${list.length}</b>
+      <button class="plus" data-act="mplus" aria-label="Добавить упущенный момент">+</button>
+    </div>
+    <div class="stepcap">Минус убирает последний добавленный</div>
+    ${items}
+    <p class="hint">Заметка необязательна, но полезна: через пару недель по ним видно, что чаще всего останавливает.</p>
+    <button class="cta" data-act="mdone">Готово</button>`;
+}
 function closeSheet(){
+  if (MD){ const d = MD; MD = null; clearTimeout(noteTimer); cleanDay(d); render(); persist(d); }
   document.getElementById('ov').classList.remove('open');
   document.getElementById('sheet').classList.remove('open');
   if (ver('6.1')) TG.BackButton.hide();
 }
 async function saveEntry(){
   const d = ymd(new Date());
-  const v = S.days[d] || (S.days[d] = {a:[], m:0});
+  const v = dayObj(d);
   v.a.push({t:Date.now(), l:F.l, p:F.p.trim().slice(0,24), x:F.x, o:F.o});
   popLevel = F.l; closeSheet(); tab = 'week'; render();
   hap('success'); toast('Подход записан');
@@ -481,18 +542,23 @@ document.addEventListener('click', async e => {
     if (!(await ask('Удалить этот подход?'))) return;
     S.days[d].a = S.days[d].a.filter(x => String(x.t)!==t); cleanDay(d); render(); await persist(d); return;
   }
-  if (b.dataset.unmiss){
-    const d = b.dataset.unmiss;
-    if (!(await ask('Убрать одну отметку «упустил»?', 'Убрать'))) return;
-    S.days[d].m = Math.max(0,(S.days[d].m||0)-1); cleanDay(d); render(); await persist(d); return;
-  }
+  if (b.dataset.mday){ openMiss(b.dataset.mday); return; }
+  if (b.dataset.mdel){ S.days[MD].ms.splice(+b.dataset.mdel,1); hap('tap'); drawMiss(); persist(MD); return; }
   const act = b.dataset.act;
   if (act==='add') openSheet();
   if (act==='save') saveEntry();
-  if (act==='miss'){
-    const d = ymd(new Date()); const v = S.days[d] || (S.days[d] = {a:[], m:0});
-    v.m = (v.m||0)+1; hap('warning'); render(); toast('Отмечено. Следующий шанс не упусти'); await persist(d);
+  if (act==='miss') openMiss(ymd(new Date()));
+  if (act==='mplus'){
+    const v = dayObj(MD), isToday = MD===ymd(new Date());
+    v.ms.push({t: isToday ? Date.now() : parse(MD).getTime()+12*36e5+v.ms.length*6e4, n:''});
+    hap('warning'); drawMiss(); persist(MD);
   }
+  if (act==='mminus'){
+    const v = S.days[MD]; if (!v || !v.ms.length) return;
+    let li = 0; v.ms.forEach((x,i) => { if (x.t >= v.ms[li].t) li = i; });
+    v.ms.splice(li,1); hap('tap'); drawMiss(); persist(MD);
+  }
+  if (act==='mdone') closeSheet();
   if (act==='reset'){
     if (!(await ask('Стереть все подходы и начать программу с нуля?', 'Стереть'))) return;
     const keys = Object.keys(S.days); S = {cfg:null, days:{}};
@@ -501,6 +567,10 @@ document.addEventListener('click', async e => {
   }
 });
 document.addEventListener('input', e => {
+  if (e.target.classList.contains('mnote') && MD){
+    const x = S.days[MD]?.ms[+e.target.dataset.mi]; if (!x) return;
+    x.n = e.target.value.slice(0,80); clearTimeout(noteTimer); const d = MD; noteTimer = setTimeout(() => persist(d), 700);
+  }
   if (e.target.id==='pinp'){ F.p = e.target.value; document.querySelectorAll('[data-place]').forEach(c=>c.classList.remove('sel')); }
   if (e.target.id==='xr'){ F.x = +e.target.value; const c = xColor(F.x); const xv = document.getElementById('xv'); xv.textContent = F.x; xv.style.setProperty('--x',c); e.target.style.setProperty('--x',c); }
 });
@@ -517,6 +587,7 @@ function applyTheme(){
   applyTheme();
   matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { if (!inTG) applyTheme(); });
   try { await load(); } catch(e){ toast('Не удалось загрузить данные'); }
+  normalize();
   render();
   setInterval(() => { if (tab==='week' && !document.getElementById('sheet').classList.contains('open')) render(); }, 60000);
 })();
