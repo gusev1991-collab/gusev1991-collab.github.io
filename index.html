@@ -73,6 +73,8 @@ h3{font-size:15px;font-weight:600;margin:22px 0 8px}
 .stepcap{text-align:center;font-size:13px;color:var(--muted);margin-bottom:16px}
 .mitem{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
 .mitem .mt{font-size:13px;color:var(--muted);width:42px;flex:none;font-variant-numeric:tabular-nums;padding-top:12px}
+[data-theme=dark] input{color-scheme:dark}
+input[type=datetime-local]{min-height:44px;-webkit-appearance:none;appearance:none;text-align:left}
 .mnote{resize:none;overflow:hidden;line-height:1.4;min-height:44px;display:block}
 .entry .anote{font-size:14px;font-weight:400;margin-top:4px}
 .entry .t1.wrap{white-space:pre-wrap;overflow:visible;overflow-wrap:anywhere}
@@ -459,6 +461,7 @@ function renderRules(){
 
 /* ---------- sheet ---------- */
 let F = {};
+const dtStr = t => { const d = new Date(t); return `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 function openSheet(edit){
   const tl = timeline(), ev = tl.length ? tl[tl.length-1].ev : null;
   let def = 1; if (ev) { const u = LEVELS.find(l => ev.got[l] < ev.need[l]); def = u ?? 3; }
@@ -467,7 +470,7 @@ function openSheet(edit){
   const places = [...new Set([...recent.slice(0,4), ...PLACES])].slice(0,7);
   F = {l:def, p:'', x:5, o:'', n:'', places, edit:null};
   if (edit){ const e = S.days[edit.d]?.a.find(x => String(x.t)===String(edit.t)); if (!e) return;
-    F = {l:e.l, p:e.p||'', x:e.x, o:e.o||'', n:e.n||'', places, edit:{d:edit.d, t:e.t}}; }
+    F = {l:e.l, p:e.p||'', x:e.x, o:e.o||'', n:e.n||'', places, edit:{d:edit.d, t:e.t}, dt:dtStr(e.t)}; }
   drawSheet();
   document.getElementById('ov').classList.add('open');
   document.getElementById('sheet').classList.add('open');
@@ -477,7 +480,8 @@ function openSheet(edit){
 function drawSheet(){
   document.getElementById('sheet').innerHTML = `<div class="grab"></div>
     <h2 style="margin-bottom:${F.edit?'2px':'12px'}">${F.edit ? 'Подход' : 'Новый подход'}</h2>
-    ${F.edit ? (() => { const t = new Date(F.edit.t); return `<div class="sub" style="margin:0 0 12px">${dm(F.edit.d)}, ${pad(t.getHours())}:${pad(t.getMinutes())}</div>`; })() : ''}
+    ${F.edit ? `<div class="fl" style="margin-top:10px"><span>Дата и время</span></div>
+    <input type="datetime-local" class="inp" id="adt" style="margin:0 0 16px" value="${F.dt}" max="${dtStr(Date.now())}">` : ''}
     <div class="lvgrid">${LEVELS.map(l=>`<button class="lvopt ${l===0?'wide':''} ${F.l===l?'sel':''}" style="--c:${LV[l].c}" data-lv="${l}"><span class="lv">L${l}</span><small>${LV[l].d}</small></button>`).join('')}</div>
     <div class="fl"><span>Где</span></div>
     <div class="chips">${F.places.map(p=>`<button class="chip ${F.p===p?'sel':''}" data-place="${esc(p)}">${esc(p)}</button>`).join('')}</div>
@@ -531,9 +535,21 @@ function closeSheet(){
 async function saveEntry(){
   if (F.edit){
     const {d,t} = F.edit, e = S.days[d]?.a.find(x => x.t===t);
-    if (e) Object.assign(e, {l:F.l, p:F.p.trim().slice(0,24), x:F.x, o:F.o, n:F.n.trim()});
+    if (!e) { closeSheet(); return; }
+    let nt = t;
+    if (F.dt && F.dt !== dtStr(t)) {
+      const [ds, hm] = F.dt.split('T'), [hh, mm] = hm.split(':').map(Number), nd = parse(ds);
+      nd.setHours(hh, mm, 0, 0); nt = nd.getTime();
+      if (isNaN(nt)) { toast('Проверь дату'); return; }
+      if (nt > Date.now()) { toast('Дата не может быть в будущем'); hap('error'); return; }
+      const all = new Set(Object.values(S.days).flatMap(v => v.a.map(x => x.t)));
+      while (all.has(nt)) nt++;
+    }
+    Object.assign(e, {t:nt, l:F.l, p:F.p.trim().slice(0,24), x:F.x, o:F.o, n:F.n.trim()});
+    const nd = ymd(new Date(nt));
+    if (nd !== d) { S.days[d].a = S.days[d].a.filter(x => x!==e); dayObj(nd).a.push(e); cleanDay(d); }
     closeSheet(); render(); hap('success'); toast('Изменения сохранены');
-    await persist(d); return;
+    await persist(d); if (nd !== d) await persist(nd); return;
   }
   const d = ymd(new Date());
   const v = dayObj(d);
@@ -601,10 +617,12 @@ document.addEventListener('input', e => {
     const x = S.days[MD]?.ms[+e.target.dataset.mi]; if (!x) return;
     x.n = e.target.value; grow(e.target); clearTimeout(noteTimer); const d = MD; noteTimer = setTimeout(() => persist(d), 700);
   }
+  if (e.target.id==='adt'){ F.dt = e.target.value; }
   if (e.target.id==='anote'){ F.n = e.target.value; grow(e.target); }
   if (e.target.id==='pinp'){ F.p = e.target.value; document.querySelectorAll('[data-place]').forEach(c=>c.classList.remove('sel')); }
   if (e.target.id==='xr'){ F.x = +e.target.value; const c = xColor(F.x); const xv = document.getElementById('xv'); xv.textContent = F.x; xv.style.setProperty('--x',c); e.target.style.setProperty('--x',c); }
 });
+document.addEventListener('change', e => { if (e.target.id==='adt') F.dt = e.target.value; });
 document.getElementById('ov').addEventListener('click', closeSheet);
 
 /* ---------- theme & boot ---------- */
