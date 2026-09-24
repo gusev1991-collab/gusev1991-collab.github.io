@@ -387,13 +387,13 @@ function renderLog(){
         <span class="badge" style="--c:var(--bad)">✕</span>
         <span class="main"><div class="t1 wrap">${e.n ? esc(e.n) : 'Упустил момент'}</div><div class="t2">${pad(t.getHours())}:${pad(t.getMinutes())}</div></span>
       </button>`;
-      return `<button class="entry" data-del="${d}|${e.t}">
+      return `<button class="entry" data-edit="${d}|${e.t}">
         <span class="badge" style="--c:${LV[e.l].c}">L${e.l}</span>
         <span class="main"><div class="t1">${esc(e.p || LV[e.l].s)}</div><div class="t2">${pad(t.getHours())}:${pad(t.getMinutes())}${e.o ? ', '+esc(e.o.toLowerCase()) : ''}</div>${e.n ? `<div class="t1 wrap anote">${esc(e.n)}</div>` : ''}</span>
         <span class="anx" style="color:${xColor(e.x)};background:color-mix(in srgb,${xColor(e.x)} 16%,transparent)">${e.x}</span>
       </button>`; }).join('');
     return `<div class="dayblock"><div class="dayhead"><span>${WDL[(dt.getDay()+6)%7]}, ${dm(d)}</span>${(v.ms||[]).length ? `<button class="missbtn" data-mday="${d}">упущено ${v.ms.length}</button>` : ''}</div>${items}</div>`;
-  }).join('') + `<p class="hint">Нажми на подход, чтобы удалить. Нажми на упущенный момент, чтобы изменить число или заметку.</p>`;
+  }).join('') + `<p class="hint">Нажми на подход, чтобы изменить или удалить его. Нажми на упущенный момент, чтобы изменить число или заметку.</p>`;
 }
 
 function chart(tl){
@@ -459,13 +459,15 @@ function renderRules(){
 
 /* ---------- sheet ---------- */
 let F = {};
-function openSheet(){
+function openSheet(edit){
   const tl = timeline(), ev = tl.length ? tl[tl.length-1].ev : null;
   let def = 1; if (ev) { const u = LEVELS.find(l => ev.got[l] < ev.need[l]); def = u ?? 3; }
   const recent = [];
   Object.keys(S.days).sort().reverse().forEach(d => [...S.days[d].a].reverse().forEach(e => { if (e.p && !recent.includes(e.p)) recent.push(e.p); }));
   const places = [...new Set([...recent.slice(0,4), ...PLACES])].slice(0,7);
-  F = {l:def, p:'', x:5, o:'', n:'', places};
+  F = {l:def, p:'', x:5, o:'', n:'', places, edit:null};
+  if (edit){ const e = S.days[edit.d]?.a.find(x => String(x.t)===String(edit.t)); if (!e) return;
+    F = {l:e.l, p:e.p||'', x:e.x, o:e.o||'', n:e.n||'', places, edit:{d:edit.d, t:e.t}}; }
   drawSheet();
   document.getElementById('ov').classList.add('open');
   document.getElementById('sheet').classList.add('open');
@@ -474,7 +476,8 @@ function openSheet(){
 }
 function drawSheet(){
   document.getElementById('sheet').innerHTML = `<div class="grab"></div>
-    <h2 style="margin-bottom:12px">Новый подход</h2>
+    <h2 style="margin-bottom:${F.edit?'2px':'12px'}">${F.edit ? 'Подход' : 'Новый подход'}</h2>
+    ${F.edit ? (() => { const t = new Date(F.edit.t); return `<div class="sub" style="margin:0 0 12px">${dm(F.edit.d)}, ${pad(t.getHours())}:${pad(t.getMinutes())}</div>`; })() : ''}
     <div class="lvgrid">${LEVELS.map(l=>`<button class="lvopt ${l===0?'wide':''} ${F.l===l?'sel':''}" style="--c:${LV[l].c}" data-lv="${l}"><span class="lv">L${l}</span><small>${LV[l].d}</small></button>`).join('')}</div>
     <div class="fl"><span>Где</span></div>
     <div class="chips">${F.places.map(p=>`<button class="chip ${F.p===p?'sel':''}" data-place="${esc(p)}">${esc(p)}</button>`).join('')}</div>
@@ -486,7 +489,8 @@ function drawSheet(){
     <div class="fl"><span>Заметка</span><span>необязательно</span></div>
     <textarea class="inp mnote" id="anote" rows="2" style="margin-top:0" placeholder="Что сказал, как отреагировала, что бы сделал иначе">${esc(F.n)}</textarea>
     <p class="hint">Ты начал, человек незнаком, живьём и трезвым, была фраза и ответ. Если так — засчитывается, как бы ни прошло. Начал не ты: развернул в разговор — L0, сам сказал, что понравилась, — L3, сам предложил встречу — L4.</p>
-    <button class="cta" data-act="save">Сохранить подход</button>`;
+    <button class="cta" data-act="save">${F.edit ? 'Сохранить изменения' : 'Сохранить подход'}</button>
+    ${F.edit ? '<button class="danger" data-act="adel" style="width:100%;margin-top:6px">Удалить подход</button>' : ''}`;
   const an = document.getElementById('anote'); if (an) grow(an);
 }
 let MD = null, noteTimer;
@@ -525,6 +529,12 @@ function closeSheet(){
   if (ver('6.1')) TG.BackButton.hide();
 }
 async function saveEntry(){
+  if (F.edit){
+    const {d,t} = F.edit, e = S.days[d]?.a.find(x => x.t===t);
+    if (e) Object.assign(e, {l:F.l, p:F.p.trim().slice(0,24), x:F.x, o:F.o, n:F.n.trim()});
+    closeSheet(); render(); hap('success'); toast('Изменения сохранены');
+    await persist(d); return;
+  }
   const d = ymd(new Date());
   const v = dayObj(d);
   v.a.push({t:Date.now(), l:F.l, p:F.p.trim().slice(0,24), x:F.x, o:F.o, n:F.n.trim()});
@@ -556,10 +566,11 @@ document.addEventListener('click', async e => {
   if (b.dataset.lv){ F.l = +b.dataset.lv; hap('tap'); drawSheet(); return; }
   if (b.dataset.place){ F.p = F.p===b.dataset.place ? '' : b.dataset.place; drawSheet(); return; }
   if (b.dataset.out){ F.o = F.o===b.dataset.out ? '' : b.dataset.out; drawSheet(); return; }
-  if (b.dataset.del){
-    const [d,t] = b.dataset.del.split('|');
+  if (b.dataset.edit){ const [d,t] = b.dataset.edit.split('|'); openSheet({d,t}); return; }
+  if (b.dataset.act==='adel'){
+    const {d,t} = F.edit;
     if (!(await ask('Удалить этот подход?'))) return;
-    S.days[d].a = S.days[d].a.filter(x => String(x.t)!==t); cleanDay(d); render(); await persist(d); return;
+    S.days[d].a = S.days[d].a.filter(x => x.t!==t); cleanDay(d); closeSheet(); render(); await persist(d); return;
   }
   if (b.dataset.mday){ openMiss(b.dataset.mday); return; }
   if (b.dataset.mdel){ S.days[MD].ms.splice(+b.dataset.mdel,1); hap('tap'); drawMiss(); persist(MD); return; }
