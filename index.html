@@ -74,6 +74,7 @@ h3{font-size:15px;font-weight:600;margin:22px 0 8px}
 .mitem{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
 .mitem .mt{font-size:13px;color:var(--muted);width:42px;flex:none;font-variant-numeric:tabular-nums;padding-top:12px}
 .mnote{resize:none;overflow:hidden;line-height:1.4;min-height:44px;display:block}
+.entry .anote{font-size:14px;font-weight:400;margin-top:4px}
 .entry .t1.wrap{white-space:pre-wrap;overflow:visible;overflow-wrap:anywhere}
 .mitem .inp{margin-top:0;flex:1;min-width:0}
 .mdel{width:36px;height:36px;border-radius:10px;background:var(--card);color:var(--muted);font-size:20px;flex:none}
@@ -388,7 +389,7 @@ function renderLog(){
       </button>`;
       return `<button class="entry" data-del="${d}|${e.t}">
         <span class="badge" style="--c:${LV[e.l].c}">L${e.l}</span>
-        <span class="main"><div class="t1">${esc(e.p || LV[e.l].s)}</div><div class="t2">${pad(t.getHours())}:${pad(t.getMinutes())}${e.o ? ', '+esc(e.o.toLowerCase()) : ''}</div></span>
+        <span class="main"><div class="t1">${esc(e.p || LV[e.l].s)}</div><div class="t2">${pad(t.getHours())}:${pad(t.getMinutes())}${e.o ? ', '+esc(e.o.toLowerCase()) : ''}</div>${e.n ? `<div class="t1 wrap anote">${esc(e.n)}</div>` : ''}</span>
         <span class="anx" style="color:${xColor(e.x)};background:color-mix(in srgb,${xColor(e.x)} 16%,transparent)">${e.x}</span>
       </button>`; }).join('');
     return `<div class="dayblock"><div class="dayhead"><span>${WDL[(dt.getDay()+6)%7]}, ${dm(d)}</span>${(v.ms||[]).length ? `<button class="missbtn" data-mday="${d}">упущено ${v.ms.length}</button>` : ''}</div>${items}</div>`;
@@ -464,7 +465,7 @@ function openSheet(){
   const recent = [];
   Object.keys(S.days).sort().reverse().forEach(d => [...S.days[d].a].reverse().forEach(e => { if (e.p && !recent.includes(e.p)) recent.push(e.p); }));
   const places = [...new Set([...recent.slice(0,4), ...PLACES])].slice(0,7);
-  F = {l:def, p:'', x:5, o:'', places};
+  F = {l:def, p:'', x:5, o:'', n:'', places};
   drawSheet();
   document.getElementById('ov').classList.add('open');
   document.getElementById('sheet').classList.add('open');
@@ -482,8 +483,11 @@ function drawSheet(){
     <input type="range" min="1" max="10" step="1" value="${F.x}" id="xr" style="--x:${xColor(F.x)}" aria-label="Тревога от 1 до 10">
     <div class="fl"><span>Чем закончилось</span><span>необязательно</span></div>
     <div class="chips">${OUTCOMES.map(o=>`<button class="chip ${F.o===o?'sel':''}" data-out="${o}">${o}</button>`).join('')}</div>
+    <div class="fl"><span>Заметка</span><span>необязательно</span></div>
+    <textarea class="inp mnote" id="anote" rows="2" style="margin-top:0" placeholder="Что сказал, как отреагировала, что бы сделал иначе">${esc(F.n)}</textarea>
     <p class="hint">Ты начал, человек незнаком, живьём и трезвым, была фраза и ответ. Если так — засчитывается, как бы ни прошло. Начал не ты: развернул в разговор — L0, сам сказал, что понравилась, — L3, сам предложил встречу — L4.</p>
     <button class="cta" data-act="save">Сохранить подход</button>`;
+  const an = document.getElementById('anote'); if (an) grow(an);
 }
 let MD = null, noteTimer;
 function openMiss(d){
@@ -523,7 +527,7 @@ function closeSheet(){
 async function saveEntry(){
   const d = ymd(new Date());
   const v = dayObj(d);
-  v.a.push({t:Date.now(), l:F.l, p:F.p.trim().slice(0,24), x:F.x, o:F.o});
+  v.a.push({t:Date.now(), l:F.l, p:F.p.trim().slice(0,24), x:F.x, o:F.o, n:F.n.trim()});
   popLevel = F.l; closeSheet(); tab = 'week'; render();
   hap('success'); toast('Подход записан');
   await persist(d);
@@ -586,6 +590,7 @@ document.addEventListener('input', e => {
     const x = S.days[MD]?.ms[+e.target.dataset.mi]; if (!x) return;
     x.n = e.target.value; grow(e.target); clearTimeout(noteTimer); const d = MD; noteTimer = setTimeout(() => persist(d), 700);
   }
+  if (e.target.id==='anote'){ F.n = e.target.value; grow(e.target); }
   if (e.target.id==='pinp'){ F.p = e.target.value; document.querySelectorAll('[data-place]').forEach(c=>c.classList.remove('sel')); }
   if (e.target.id==='xr'){ F.x = +e.target.value; const c = xColor(F.x); const xv = document.getElementById('xv'); xv.textContent = F.x; xv.style.setProperty('--x',c); e.target.style.setProperty('--x',c); }
 });
